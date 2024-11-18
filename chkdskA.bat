@@ -19,6 +19,7 @@ setlocal enabledelayedexpansion
 
 :: Initialize
 call :get_timestamp
+set "workdir=%tmp%"
 set "cleanup=0"
 set "totalvolume=0"
 set "currentvolume=0"
@@ -26,33 +27,33 @@ set "currentvolume=0"
 :: Cleanup temporary files
 :cleanup
 echo Cleaning temporary files...
-if exist "%tmp%\chkdskA" (del "%tmp%\chkdskA")
-if exist "%tmp%\chkdskATMP" (del "%tmp%\chkdskATMP")
-if exist "%tmp%\chkdskAvolumes" (del "%tmp%\chkdskAvolumes")
+if exist "!workdir!\chkdskA" (del "!workdir!\chkdskA")
+if exist "!workdir!\chkdskATMP" (del "!workdir!\chkdskATMP")
+if exist "!workdir!\chkdskAvolumes" (del "!workdir!\chkdskAvolumes")
 if !cleanup! equ 1 (goto :eof) else (set /a "cleanup+=1")
 
 :: Getting Volumes to chkdsk on and writing to log
-echo Volumes to check: >> "%tmp%\chkdskAvolumes"
+echo Volumes to check: >> "!workdir!\chkdskAvolumes"
 echo Getting volumes...
-wmic logicaldisk get deviceid | find ":" > "%tmp%\chkdskA"
-for /F %%x in (%tmp%\chkdskA) do (
+wmic logicaldisk get deviceid | find ":" > "!workdir!\chkdskA"
+for /F %%x in (!workdir!\chkdskA) do (
     set /a "totalvolume+=1"
 )
 echo Done^^!
 echo.
 
 :: Chkdsking the Volumes and writing to log
-for /F %%x in (%tmp%\chkdskA) do (
+for /F %%x in (!workdir!\chkdskA) do (
     echo Processing %%x
-    echo. >> "%tmp%\chkdskATMP"
-    echo ###################################### %%x ###################################### >> "%tmp%\chkdskATMP"
-    echo. >> "%tmp%\chkdskATMP"
+    echo. >> "!workdir!\chkdskATMP"
+    echo ###################################### %%x ###################################### >> "!workdir!\chkdskATMP"
+    echo. >> "!workdir!\chkdskATMP"
     
     :: Run chkdsk and save output to a temporary file for each volume
-    chkdsk %%x >> "%tmp%\chkdskATMP"
+    chkdsk %%x >> "!workdir!\chkdskATMP"
 
     :: Log problem status for each volume
-    echo %%x !errorlevel! >> "%tmp%\chkdskAvolumes"
+    echo %%x !errorlevel! >> "!workdir!\chkdskAvolumes"
     set /a "currentvolume+=1"
     echo %%x Done^^! (!currentvolume!/!totalvolume!^)
 )
@@ -60,16 +61,16 @@ echo.
 
 :: Assemble final log
 (
-    type "%tmp%\chkdskAvolumes"
-    type "%tmp%\chkdskATMP"
-) > "%tmp%\chkdskA!timestamp!.txt"
+    type "!workdir!\chkdskAvolumes"
+    type "!workdir!\chkdskATMP"
+) > "!workdir!\chkdskA!timestamp!.txt"
 
 :: Clears temporary files before concluding script
 call :cleanup
 
 :: Opening the log
 echo Opening logfile...
-start notepad "%tmp%\chkdskA!timestamp!.txt"
+start notepad "!workdir!\chkdskA!timestamp!.txt"
 echo Done^^!
 
 
