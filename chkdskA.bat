@@ -1,5 +1,5 @@
 @echo off
-echo Check disk all [v1.0]
+echo Check disk all [v1.1]
 echo _BrightDarkness_
 echo.
 
