@@ -1,5 +1,5 @@
 @echo off
-echo Check disk all [v1.1]
+echo Check disk all [v1.2]
 echo _BrightDarkness_
 echo.
 
@@ -73,9 +73,12 @@ echo Opening logfile...
 start notepad "!workdir!\chkdskA!timestamp!.txt"
 echo Done^^!
 
+echo.
+echo Log: !workdir!\chkdskA!timestamp!.txt
+echo.
 
 endlocal
-timeout /t 5
+pause
 exit /b
 
 
