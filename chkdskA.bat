@@ -1,5 +1,5 @@
 @echo off
-echo Check disk all [v1.2]
+echo Check disk all [v1.3]
 echo _BrightDarkness_
 echo.
 
@@ -30,6 +30,7 @@ echo Cleaning temporary files...
 if exist "!workdir!\chkdskA" (del "!workdir!\chkdskA")
 if exist "!workdir!\chkdskATMP" (del "!workdir!\chkdskATMP")
 if exist "!workdir!\chkdskAvolumes" (del "!workdir!\chkdskAvolumes")
+if exist "!workdir!\resultSimple" (del "!workdir!\resultSimple")
 if !cleanup! equ 1 (goto :eof) else (set /a "cleanup+=1")
 
 :: Getting Volumes to chkdsk on and writing to log
@@ -54,6 +55,7 @@ for /F %%x in (!workdir!\chkdskA) do (
 
     :: Log problem status for each volume
     echo %%x !errorlevel! >> "!workdir!\chkdskAvolumes"
+    echo %%x !errorlevel! >> "!workdir!\resultSimple"
     set /a "currentvolume+=1"
     echo %%x Done^^! (!currentvolume!/!totalvolume!^)
 )
@@ -65,16 +67,16 @@ echo.
     type "!workdir!\chkdskATMP"
 ) > "!workdir!\chkdskA!timestamp!.txt"
 
-:: Clears temporary files before concluding script
-call :cleanup
-
 :: Opening the log
-echo Opening logfile...
-start notepad "!workdir!\chkdskA!timestamp!.txt"
+echo Simplified results:
+type "!workdir!\resultSimple"
 echo Done^^!
-
 echo.
 echo Log: !workdir!\chkdskA!timestamp!.txt
+echo.
+
+:: Clears temporary files before concluding script
+call :cleanup
 echo.
 
 endlocal
