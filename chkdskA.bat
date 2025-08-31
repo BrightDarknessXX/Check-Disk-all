@@ -36,7 +36,7 @@ if !cleanup! equ 1 (goto :eof) else (set /a "cleanup+=1")
 :: Getting Volumes to chkdsk on and writing to log
 echo Volumes to check: >> "!workdir!\chkdskAvolumes"
 echo Getting volumes...
-wmic logicaldisk get deviceid | find ":" > "!workdir!\chkdskA"
+powershell -command "Get-CimInstance Win32_LogicalDisk | Select-Object DeviceID" | find ":" > "!workdir!\chkdskA"
 for /F %%x in (!workdir!\chkdskA) do (
     set /a "totalvolume+=1"
 )
