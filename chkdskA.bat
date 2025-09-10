@@ -1,5 +1,5 @@
 @echo off
-echo Check disk all [v1.3]
+echo Check disk all [v1.3.1]
 echo _BrightDarkness_
 echo.
 
@@ -9,10 +9,14 @@ if %errorLevel% NEQ 0 (
     ECHO **************************************
     ECHO Invoking UAC for Privilege Escalation
     ECHO **************************************
-    powershell -Command "Start-Process '%~f0' -Verb RunAs"
+    if exist "%LocalAppData%\Microsoft\WindowsApps\wt.exe" (
+        powershell -Command "Start-Process wt.exe -ArgumentList '-d \"%CD%\" cmd /c \"%~f0\"' -Verb RunAs"
+    ) else (
+        powershell -Command "Start-Process '%~f0' -Verb RunAs"
+    )
     exit /b
 )
-ENDLOCAL
+cd /D %~dp0
 
 :: Enable delayed expansion for dynamic variable updates in loop
 setlocal enabledelayedexpansion
