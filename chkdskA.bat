@@ -68,7 +68,7 @@ if !errorLevel! NEQ 0 (
     )
     exit /b
 )
-pause
+
 :: Get timestamp with Subscript
 call :get_timestamp
 
