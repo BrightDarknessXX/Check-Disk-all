@@ -26,6 +26,7 @@ The script operates in these sequential phases:
   - WMI queries (`Get-CimInstance Win32_LogicalDisk`)
   - Timestamp generation (`Get-Date -Format`)
   - File listing and sorting (`gci` with filters)
+  - UAC escalation detection and invocation
 - **Pattern**: Always redirect output to files or pipes; use `find` command for filtering rather than PowerShell's `Where-Object` in direct command substitution
 - **Error Handling**: PowerShell return codes flow through batch via `!errorLevel!`
 
@@ -35,27 +36,28 @@ Command-line flags control execution mode (not flags during main run):
 - `-log`: Show existing logs and their location
 - `-cleanup`: Remove temp files manually
 - `-clear [-q]`: Delete all chkdskA*.txt logs (with optional quiet mode)
+- `-select`: Select specific volumes to check
 
 **Pattern**: Parameter handling happens early via series of `if /i` blocks; each flag exits with `/b` to prevent further execution.
 
 ### File Management Convention
 All temporary and output files use the `chkdskA` prefix in `%tmp%`:
-- `chkdskA` - Volume list (intermediate)
-- `chkdskATMP` - Raw chkdsk output (intermediate)
-- `chkdskAvolumes` - Volume names + error codes (intermediate)
-- `resultSimple` - Human-readable results (intermediate)
-- `chkdskA[timestamp].txt` - Final consolidated log (persistent)
+- `chkdskA_Devices` - Volume list (intermediate)
+- `chkdskA_Result` - Raw chkdsk output (intermediate)
+- `chkdskA_VolumeErrors` - Volume names + error codes (intermediate)
+- `tmpchkdskA_DevicesSelect` - User-selected volumes (persists across UAC escalation)
+- `chkdskAlog_[timestamp].txt` - Final consolidated log (persistent)
 
-**Pattern**: Always delete temp files post-execution via `:cleanup` subroutine to maintain a clean tmp directory.
+**Pattern**: Delete temp files post-execution via `:cleanup` subroutine — the cleanup uses `chkdskA*` wildcard pattern, so any file in `%tmp%` starting with "chkdskA" will be removed.
 
 ## Execution Flow for Modifications
 
 When modifying this script:
-1. **Permission checks** (lines 57-67) must always precede main logic—users without admin can't check disks
+1. **Permission checks** (lines 83-86) must always precede main logic—users without admin can't check disks
 2. **Variable initialization** (lines 10-13) must be set before any loop that references them
-3. **Timestamp generation** (`:get_timestamp` subroutine, line 107) should be called early for logging
-4. **Volume loop** (lines 88-99) is the performance bottleneck—each iteration spawns `chkdsk` and PowerShell calls
-5. **Final assembly** (lines 101-103) concatenates intermediate files; order matters for readability
+3. **Timestamp generation** (`:get_timestamp` subroutine, ~line 160) should be called early for logging
+4. **Volume loop** (lines 103-117) is the performance bottleneck—each iteration spawns `chkdsk` and PowerShell calls
+5. **Final assembly** (lines 119-125) concatenates intermediate files; order matters for readability
 
 ## Common Patterns to Reuse
 
@@ -84,3 +86,5 @@ When modifying this script:
 - Log files are permanently stored in `%tmp%` until manually cleared via `-clear` flag
 - `chkdsk` requires full disk access; results may be limited if volumes are in use
 - Script does not schedule checking for next restart (future enhancement opportunity)
+- The `:cleanup` subroutine uses `chkdskA*` wildcard — will delete ANY file in `%tmp%` starting with "chkdskA"
+- UAC escalation detects Windows Terminal (`wt.exe`) vs standard `cmd` for proper elevation method

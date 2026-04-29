@@ -18,7 +18,7 @@ if /i "%1"=="-help" (
     echo -log           Show latest logs and location
     echo -cleanup       Clean temporary files
     echo -clear [-q]    Removes all log files [Quiet mode (Command executes immediately^)]
-    echo -chosen         Choose volumes to chkdsk on
+    echo -select         Select volumes to chkdsk on
     exit /b
 )
 
@@ -30,7 +30,7 @@ if /i "%1"=="-log" (
 
 if /i "%1"=="-cleanup" (
     call :cleanup
-    del !workdir!\tmpchkdskA_DevicesChosen >nul 2>&1
+    del !workdir!\tmpchkdskA_DevicesSelect >nul 2>&1
     exit /b
 )
 
@@ -57,17 +57,17 @@ if /i "%1"=="-clear" (
     exit /b
 )
 
-if /i "%1"=="-chosen" (
-    echo -chosen detected. Please select volumes to chkdsk:
+if /i "%1"=="-select" (
+    echo -select detected. Please select volumes to chkdsk:
     call :get_devices
     echo Volumes:
     type "!workdir!\chkdskA_Devices"
     echo.
     set /p "selectedVolumes=Enter volumes to chkdsk (separated by space, e.g., C: D:): "
     :: Validate selected volumes and write to temporary file
-    :: Used tmpchkdskA_DevicesChosen as a temporary file to store valid selected volumes. Temporary file is not affected by cleanup function and is deleted immediately after use.
+    :: Used tmpchkdskA_DevicesSelect as a temporary file to store valid selected volumes. Temporary file is not affected by cleanup function and is deleted immediately after use.
     :: File will remain if user forecefully exists the script after UAC escalation. It will be used for next execution or can be deleted manually or with -cleanup parameter.
-    > "!workdir!\tmpchkdskA_DevicesChosen" (
+    > "!workdir!\tmpchkdskA_DevicesSelect" (
         for %%v in (!selectedVolumes!) do (
             if exist %%v\ (
                 set "seenValidVolumes=1"
@@ -77,7 +77,7 @@ if /i "%1"=="-chosen" (
     )
     if not defined seenValidVolumes (
         echo No valid volumes selected. Exiting.
-        del "!workdir!\tmpchkdskA_DevicesChosen" >nul
+        del "!workdir!\tmpchkdskA_DevicesSelect" >nul 2>&1
         exit /b
     )
 )
@@ -98,12 +98,12 @@ call :cleanup
 :: Getting Volumes to chkdsk on and writing to log
 echo Getting volumes...
 
-if not exist "!workdir!\tmpchkdskA_DevicesChosen" (
+if not exist "!workdir!\tmpchkdskA_DevicesSelect" (
     call :get_devices
 ) else (
-    echo Using chosen volumes
-    copy "!workdir!\tmpchkdskA_DevicesChosen" "!workdir!\chkdskA_Devices" >nul
-    del "!workdir!\tmpchkdskA_DevicesChosen" >nul
+    echo Using selected volumes
+    copy "!workdir!\tmpchkdskA_DevicesSelect" "!workdir!\chkdskA_Devices" >nul
+    del "!workdir!\tmpchkdskA_DevicesSelect" >nul
 )
 
 for /F %%x in (!workdir!\chkdskA_Devices) do (
