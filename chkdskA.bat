@@ -22,21 +22,26 @@ if /i "%1"=="-help" (
     exit /b
 )
 
+:: Show log files and location. If no log files exist, show message and exit.
 if /i "%1"=="-log" (
     echo !workdir!
     powershell -Command "gci !workdir! -Filter "chkdskAlog_*.txt" | Select-Object LastWriteTime,Length,Name"
     exit /b
 )
 
+:: Cleanup temporary files. This is useful if the script was forcefully exited and left temporary files behind, or to just clean up before next execution. Temporary files are deleted at the start and end of the script, but this allows users to clean up in between if needed.
 if /i "%1"=="-cleanup" (
     call :cleanup
     del !workdir!\tmpchkdskA_DevicesSelect >nul 2>&1
     exit /b
 )
 
+:: List log files and confirm before deletion. If -q is provided, skip confirmation and delete immediately.
 if /i "%1"=="-clear" (
-    dir !workdir!\chkdskAlog_*.txt /b
-    if "!errorLevel!"=="1" (
+    for %%f in (!workdir!\chkdskAlog_*.txt) do (
+        echo - %%~nxf
+    )
+    if not exist !workdir!\chkdskAlog_*.txt (
         echo No logs exist
         exit /b
     )
@@ -57,17 +62,17 @@ if /i "%1"=="-clear" (
     exit /b
 )
 
+:: Validate selected volumes and write to temporary file
+:: Used persist_chkdskA_DevicesSelect.tmp as a temporary file to store valid selected volumes. Temporary file is not affected by cleanup function and is deleted immediately after use.
+:: File will remain if user forecefully exists the script after UAC escalation. It will be used for next execution or can be deleted manually or with -cleanup parameter.
 if /i "%1"=="-select" (
     echo -select detected. Please select volumes to chkdsk:
     call :get_devices
     echo Volumes:
-    type "!workdir!\chkdskA_Devices"
+    type "!workdir!\chkdskA_Devices.tmp"
     echo.
     set /p "selectedVolumes=Enter volumes to chkdsk (separated by space, e.g., C: D:): "
-    :: Validate selected volumes and write to temporary file
-    :: Used tmpchkdskA_DevicesSelect as a temporary file to store valid selected volumes. Temporary file is not affected by cleanup function and is deleted immediately after use.
-    :: File will remain if user forecefully exists the script after UAC escalation. It will be used for next execution or can be deleted manually or with -cleanup parameter.
-    > "!workdir!\tmpchkdskA_DevicesSelect" (
+    > "!workdir!\persist_chkdskA_DevicesSelect.tmp" (
         for %%v in (!selectedVolumes!) do (
             if exist %%v\ (
                 set "seenValidVolumes=1"
@@ -77,9 +82,10 @@ if /i "%1"=="-select" (
     )
     if not defined seenValidVolumes (
         echo No valid volumes selected. Exiting.
-        del "!workdir!\tmpchkdskA_DevicesSelect" >nul 2>&1
+        del "!workdir!\persist_chkdskA_DevicesSelect.tmp" >nul 2>&1
         exit /b
     )
+    goto :startOfProgram
 )
 
 :: If any parameter is provided that is not recognized, show error and exit
@@ -87,8 +93,10 @@ if not "%1"=="" (
     echo Invalid parameter. Use -help for available parameters.
     exit /b
 )
-pause
 
+
+:: Start of program after parameter handling if not exited
+:startOfProgram
 
 :: Check for elevated privileges
 net session >nul 2>&1
@@ -104,24 +112,22 @@ call :get_timestamp
 call :cleanup
 
 :: Getting Volumes to chkdsk on and writing to log
-echo Getting volumes...
-
-if not exist "!workdir!\tmpchkdskA_DevicesSelect" (
+if not exist "!workdir!\persist_chkdskA_DevicesSelect.tmp" (
     call :get_devices
 ) else (
     echo Using selected volumes
-    copy "!workdir!\tmpchkdskA_DevicesSelect" "!workdir!\chkdskA_Devices" >nul
-    del "!workdir!\tmpchkdskA_DevicesSelect" >nul
+    copy "!workdir!\persist_chkdskA_DevicesSelect.tmp" "!workdir!\chkdskA_Devices.tmp" >nul
+    del "!workdir!\persist_chkdskA_DevicesSelect.tmp" >nul
 )
 
-for /F %%x in (!workdir!\chkdskA_Devices) do (
+for /F %%x in (!workdir!\chkdskA_Devices.tmp) do (
     set /a "totalvolume+=1"
 )
 echo Done^^!
 echo.
 
 :: Chkdsking the Volumes and writing to log
-for /F %%x in (!workdir!\chkdskA_Devices) do (
+for /F %%x in (!workdir!\chkdskA_Devices.tmp) do (
     echo Processing %%x
     (
         echo.
@@ -129,10 +135,10 @@ for /F %%x in (!workdir!\chkdskA_Devices) do (
         echo.
         :: Run chkdsk and save output to a temporary file for each volume
         chkdsk %%x
-    ) >> "!workdir!\chkdskA_Result"
+    ) >> "!workdir!\chkdskA_Result.tmp"
     
     :: Log error level for each volume
-    echo %%x !errorLevel! >> "!workdir!\chkdskA_VolumeErrors"
+    echo %%x !errorLevel! >> "!workdir!\chkdskA_VolumeErrors.tmp"
     set /a "currentvolume+=1"
     echo %%x Done^^! (!currentvolume!/!totalvolume!^)
 )
@@ -141,13 +147,13 @@ echo.
 :: Assemble final log
 > "!workdir!\chkdskAlog_!timestamp!.txt" (
     echo Volumes to check:
-    type "!workdir!\chkdskA_VolumeErrors"
-    type "!workdir!\chkdskA_Result"
+    type "!workdir!\chkdskA_VolumeErrors.tmp"
+    type "!workdir!\chkdskA_Result.tmp"
 )
 
 :: Opening the log
 echo Simplified results:
-type "!workdir!\chkdskA_VolumeErrors"
+type "!workdir!\chkdskA_VolumeErrors.tmp"
 echo Done^^!
 echo.
 echo Log: !workdir!\chkdskAlog_!timestamp!.txt
@@ -172,14 +178,14 @@ goto :eof
 
 :cleanup
 echo Cleaning temporary files...
-:: Caution. This will delete all files in the temp directory that start with "chkdskA". Make sure to not have any important files with this prefix in the working directory.
-for %%f in (!workdir!\chkdskA*) do (
+for %%f in (!workdir!\chkdskA_*.tmp) do (
     if exist "%%f" del "%%f"
 )
 goto :eof
 
 :get_devices
-powershell -command "Get-CimInstance Win32_LogicalDisk | Select-Object DeviceID" | find ":" > "!workdir!\chkdskA_Devices"
+echo Getting volumes...
+powershell -command "Get-CimInstance Win32_LogicalDisk | Select-Object DeviceID" | find ":" > "!workdir!\chkdskA_Devices.tmp"
 goto :eof
 
 :UACescalation
