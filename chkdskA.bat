@@ -18,7 +18,7 @@ if /i "%1"=="-help" (
     echo -log           Show latest logs and location
     echo -cleanup       Clean temporary files
     echo -clear [-q]    Removes all log files [Quiet mode (Command executes immediately^)]
-    echo -select         Select volumes to chkdsk on
+    echo -select        Select volumes to chkdsk on
     exit /b
 )
 
@@ -81,6 +81,14 @@ if /i "%1"=="-select" (
         exit /b
     )
 )
+
+:: If any parameter is provided that is not recognized, show error and exit
+if not "%1"=="" (
+    echo Invalid parameter. Use -help for available parameters.
+    exit /b
+)
+pause
+
 
 :: Check for elevated privileges
 net session >nul 2>&1
