@@ -83,7 +83,6 @@ When modifying this script:
 
 ## Known Limitations & Notes
 
-- Log files are permanently stored in `%tmp%` until manually cleared via `-clear` flag
 - `chkdsk` requires full disk access; results may be limited if volumes are in use
 - Script does not schedule checking for next restart (future enhancement opportunity)
 - The `:cleanup` subroutine uses `chkdskA*` wildcard — will delete ANY file in `%tmp%` starting with "chkdskA"
